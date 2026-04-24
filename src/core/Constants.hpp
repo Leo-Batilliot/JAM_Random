@@ -8,6 +8,7 @@ namespace Constants {
     inline constexpr unsigned int WINDOW_HEIGHT = 1080;
     inline constexpr unsigned int TARGET_FPS = 60;
     inline constexpr const char* WINDOW_TITLE = "Jam Random";
+    inline constexpr float MAX_FRAME_DELTA = 0.05f;
 
     inline constexpr int KILLS_TO_WIN = 5;
     inline constexpr int PLAYER_COUNT = 2;
@@ -24,13 +25,14 @@ namespace Constants {
     inline constexpr float FIRE_COOLDOWN = 0.4f;
 
     inline constexpr sf::Color BACKGROUND_COLOR = sf::Color(30, 30, 40);
+    inline constexpr sf::Color MENU_BACKGROUND_COLOR = sf::Color(20, 20, 30);
 
     inline constexpr float MIN_POWERUP_SPAWN_INTERVAL = 5.0f;
     inline constexpr float MAX_POWERUP_SPAWN_INTERVAL = 15.f;
-    inline constexpr float POWERUP_LIFETIME           = 10.f;
-    inline constexpr float POWERUP_RADIUS             = 16.f;
-    inline constexpr int   POWERUP_MAX_ON_MAP         = 3;
-    inline constexpr float POWERUP_EFFECT_DURATION    = 8.f;
+    inline constexpr float POWERUP_LIFETIME = 10.f;
+    inline constexpr float POWERUP_RADIUS = 16.f;
+    inline constexpr int POWERUP_MAX_ON_MAP = 3;
+    inline constexpr float POWERUP_EFFECT_DURATION = 8.f;
 
     inline constexpr float WALL_THICKNESS = 32.f;
 }
