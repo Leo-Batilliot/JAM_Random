@@ -2,7 +2,7 @@
 #include <array>
 #include <vector>
 #include <SFML/System/Vector2.hpp>
-#include "Constants.hpp"
+#include "config/GameplayConfig.hpp"
 #include "EventBus.hpp"
 #include "GameEvents.hpp"
 
@@ -15,7 +15,7 @@ struct ActiveEffect {
 // Player data
 struct PlayerState {
     int kills = 0;
-    int hp = Constants::PLAYER_MAX_HP;
+    int hp = GameplayConfig::PLAYER_MAX_HP;
     bool alive = true;
 
     float respawnTimer = 0.f;
@@ -25,22 +25,22 @@ struct PlayerState {
     sf::Vector2f spawnPosition;
     std::vector<ActiveEffect> effects;
 
-    bool hasEffect(PowerUpType t) const {
+    bool hasEffect(PowerUpType type) const {
         for (auto& effect : effects) {
-            if (effect.type == t)
+            if (effect.type == type)
                 return true;
         }
         return false;
     }
 
-    void addEffect(PowerUpType t, float duration) {
+    void addEffect(PowerUpType type, float duration) {
         for (auto& effect : effects) {
-            if (effect.type == t) {
+            if (effect.type == type) {
                 effect.timeRemaining = duration;
                 return;
             }
         }
-        effects.push_back({t, duration});
+        effects.push_back({type, duration});
     }
 
     // Counts down effects and emits PowerUpExpiredEvent when a timer ends.
@@ -57,7 +57,7 @@ struct PlayerState {
 
 // Global game state
 struct GameState {
-    std::array<PlayerState, Constants::PLAYER_COUNT> players;
+    std::array<PlayerState, GameplayConfig::PLAYER_COUNT> players;
     bool gameOver = false;
     int winnerId = -1;
 

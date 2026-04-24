@@ -1,12 +1,20 @@
 #include "Game.hpp"
-#include "Constants.hpp"
+#include "config/ColorConfig.hpp"
+#include "config/WindowConfig.hpp"
 #include <SFML/System/Clock.hpp>
 #include "../world/MenuScene.hpp"
 
 Game::Game()
-    : _window(sf::VideoMode({Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT}), Constants::WINDOW_TITLE)
+    : _window(sf::VideoMode({WindowConfig::WINDOW_WIDTH, WindowConfig::WINDOW_HEIGHT}), WindowConfig::WINDOW_TITLE, sf::Style::None)
 {
-    _window.setFramerateLimit(Constants::TARGET_FPS);
+    _window.setFramerateLimit(WindowConfig::TARGET_FPS);
+    
+    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
+    _window.setPosition({
+        static_cast<int>((desktop.size.x - _window.getSize().x) / 2),
+        static_cast<int>((desktop.size.y - _window.getSize().y) / 2)
+    });
+
     _scenes.push(std::make_unique<MenuScene>(*this));
     _scenes.applyPending();
 }
@@ -15,8 +23,8 @@ void Game::run() {
     sf::Clock clock;
     while (_window.isOpen() && !_scenes.empty()) {
         float dt = clock.restart().asSeconds();
-        if (dt > Constants::MAX_FRAME_DELTA)
-            dt = Constants::MAX_FRAME_DELTA;
+        if (dt > WindowConfig::MAX_FRAME_DELTA)
+            dt = WindowConfig::MAX_FRAME_DELTA;
         processEvents();
         update(dt);
         render();
@@ -34,13 +42,14 @@ void Game::processEvents() {
 }
 
 void Game::update(float dt) {
-    if (auto* s = _scenes.current())
-        s->update(dt, _scenes);
+    _input.update();
+    if (auto* scene = _scenes.current())
+        scene->update(dt, _scenes);
 }
 
 void Game::render() {
-    _window.clear(Constants::BACKGROUND_COLOR);
-    if (auto* s = _scenes.current())
-        s->render(_window);
+    _window.clear(ColorConfig::BACKGROUND_COLOR);
+    if (auto* scene = _scenes.current())
+        scene->render(_window);
     _window.display();
 }
