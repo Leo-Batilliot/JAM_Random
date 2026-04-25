@@ -4,6 +4,8 @@
 #include "config/ArenaConfig.hpp"
 #include "config/ColorConfig.hpp"
 #include "config/WindowConfig.hpp"
+#include "modules/ModuleFactory.hpp"
+#include <vector>
 #include <SFML/Graphics.hpp>
 
 // GameData = private scene data stored in the .cpp.
@@ -19,10 +21,17 @@
 // In constructor: _data->arena.setSize({arenaSizeX, arenaSizeY});
 // In update: _data->flashTimer = std::max(0.0f, _data->flashTimer - dt);
 // In render: window.draw(_data->arena);
-struct GameScene::GameData {};
+struct GameScene::GameData {
+        ModuleContext context;
+        std::vector<std::unique_ptr<IGameModule>> modules;
+
+        explicit GameData(Game& game)
+                : context{game, game.bus(), game.state(), game.input()},
+                    modules(createGameModules(context)) {}
+};
 
 GameScene::GameScene(Game& game)
-    : _game(game), _data(std::make_unique<GameData>())
+    : _game(game), _data(std::make_unique<GameData>(game))
 {
     sf::Vector2f arenaSize{
         WindowConfig::WINDOW_WIDTH * ArenaConfig::ARENA_WIDTH_RATIO,
@@ -32,13 +41,17 @@ GameScene::GameScene(Game& game)
         WindowConfig::WINDOW_WIDTH * ArenaConfig::ARENA_POS_X_RATIO,
         WindowConfig::WINDOW_HEIGHT * ArenaConfig::ARENA_POS_Y_RATIO
     };
+    sf::Vector2f arenaTopLeft{
+        arenaPos.x - arenaSize.x * 0.5f,
+        arenaPos.y - arenaSize.y * 0.5f
+    };
     sf::Vector2f spawn0{
-        arenaPos.x + arenaSize.x * ArenaConfig::ARENA_SPAWN0_X_RATIO,
-        arenaPos.y + arenaSize.y * ArenaConfig::ARENA_SPAWN_Y_RATIO
+        arenaTopLeft.x + arenaSize.x * ArenaConfig::ARENA_SPAWN0_X_RATIO,
+        arenaTopLeft.y + arenaSize.y * ArenaConfig::ARENA_SPAWN_Y_RATIO
     };
     sf::Vector2f spawn1{
-        arenaPos.x + arenaSize.x * ArenaConfig::ARENA_SPAWN1_X_RATIO,
-        arenaPos.y + arenaSize.y * ArenaConfig::ARENA_SPAWN_Y_RATIO
+        arenaTopLeft.x + arenaSize.x * ArenaConfig::ARENA_SPAWN1_X_RATIO,
+        arenaTopLeft.y + arenaSize.y * ArenaConfig::ARENA_SPAWN_Y_RATIO
     };
     _game.state().reset(spawn0, spawn1);
 
@@ -54,11 +67,13 @@ void GameScene::handleEvent(const sf::Event& event, SceneManager& sm) {
         if (key->code == sf::Keyboard::Key::Escape)
             sm.pop();
     }
-    // Hook input/events here for gameplay systems if needed.
+    for (auto& module : _data->modules)
+        module->handleEvent(_data->context, event);
 }
 
-void GameScene::update(float, SceneManager&) {
-    // Hook gameplay updates here (combat, powerups, HUD timers).
+void GameScene::update(float dt, SceneManager&) {
+    for (auto& module : _data->modules)
+    module->update(_data->context, dt);
 }
 
 void GameScene::render(sf::RenderWindow& window) {
@@ -78,4 +93,6 @@ void GameScene::render(sf::RenderWindow& window) {
     arena.setOutlineColor(ColorConfig::ARENA_OUTLINE_COLOR);
     arena.setOutlineThickness(ArenaConfig::ARENA_OUTLINE_THICKNESS);
     window.draw(arena);
+    for (auto& module : _data->modules)
+        module->render(_data->context, window);
 }

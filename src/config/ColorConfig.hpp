@@ -7,4 +7,6 @@ namespace ColorConfig {
     inline constexpr sf::Color MENU_BACKGROUND_COLOR = sf::Color(20, 20, 30);
     inline constexpr sf::Color ARENA_BACKGROUND_COLOR = sf::Color(50, 50, 65);
     inline constexpr sf::Color ARENA_OUTLINE_COLOR = sf::Color(255, 255, 255);
+    inline constexpr sf::Color PLAYER0_COLOR = sf::Color(90, 170, 255);
+    inline constexpr sf::Color PLAYER1_COLOR = sf::Color(255, 120, 120);
 }
