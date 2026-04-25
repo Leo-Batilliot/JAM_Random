@@ -1,5 +1,9 @@
 #pragma once
 #include "../IGameModule.hpp"
+#include "config/GameplayConfig.hpp"
+#include <SFML/System/Vector2.hpp>
+#include <array>
+#include <vector>
 
 // Module A: combat, gameplay rules for players, bullets, and kills.
 class CombatModule : public IGameModule {
@@ -10,5 +14,15 @@ public:
     void render(const ModuleContext& context, sf::RenderWindow& window) override;
 
 private:
+    struct Bullet {
+        sf::Vector2f position;
+        sf::Vector2f velocity;
+        int ownerId;
+        float lifetime;
+    };
+
     ModuleContext& _context;
+    std::vector<Bullet> _bullets;
+    std::array<float, GameplayConfig::PLAYER_COUNT> _fireCooldowns{};
+    std::array<sf::Vector2f, GameplayConfig::PLAYER_COUNT> _facing{};
 };
