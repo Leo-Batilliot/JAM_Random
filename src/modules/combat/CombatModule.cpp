@@ -9,8 +9,8 @@
 #include <algorithm>
 
 CombatModule::CombatModule(ModuleContext& context) : _context(context) {
-	for (auto& dir : _facing)
-		dir = {1.f, 0.f};
+	_facing[0] = {1.f, 0.f};
+	_facing[1] = {-1.f, 0.f};
 }
 
 void CombatModule::handleEvent(const ModuleContext&, const sf::Event&) {}
@@ -73,10 +73,9 @@ void CombatModule::update(const ModuleContext& context, float dt) {
 			PlayerState& player = context.state.players[playerIndex];
 			if (!player.alive || player.invincible)
 				continue;
-			sf::Vector2f delta = player.position - bullet.position;
-			float distSq = delta.x * delta.x + delta.y * delta.y;
-			float radiusSum = player.radius + GameplayConfig::BULLET_RADIUS;
-			if (distSq > radiusSum * radiusSum)
+			const sf::Vector2f delta = player.position - bullet.position;
+			const float distSq = delta.x * delta.x + delta.y * delta.y;
+			if (float radiusSum = player.radius + GameplayConfig::BULLET_RADIUS; distSq > radiusSum * radiusSum)
 				continue;
 
 			bullet.lifetime = -1.f;
@@ -113,8 +112,7 @@ void CombatModule::update(const ModuleContext& context, float dt) {
 	});
 
 	for (int playerIndex = 0; playerIndex < GameplayConfig::PLAYER_COUNT; ++playerIndex) {
-		PlayerState& player = context.state.players[playerIndex];
-		if (player.alive) {
+		if (PlayerState& player = context.state.players[playerIndex]; player.alive) {
 			if (player.invincible) {
 				player.invincibleTimer -= dt;
 				if (player.invincibleTimer <= 0.f) {
@@ -146,8 +144,10 @@ void CombatModule::render(const ModuleContext& context, sf::RenderWindow& window
 		body.setOrigin(sf::Vector2f{player.radius, player.radius});
 		body.setPosition(player.position);
 		sf::Color color = (playerIndex == 0) ? ColorConfig::PLAYER0_COLOR : ColorConfig::PLAYER1_COLOR;
-		if (player.invincible)
-			color.a = 120;
+		if (player.invincible) {
+			const int phase = static_cast<int>(player.invincibleTimer * 10.f) % 2;
+			color.a = (phase == 0) ? 80 : 255;
+		}
 		body.setFillColor(color);
 		window.draw(body);
 	}
