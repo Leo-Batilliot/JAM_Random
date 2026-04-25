@@ -14,8 +14,6 @@ public:
 
 private:
     Game& _game;
-    // GameData defined in .cpp to keep this header light.
-    // Put private scene state and module pointers inside it.
-    struct GameData;
-    std::unique_ptr<GameData> _data;
+    struct SceneState;
+    std::unique_ptr<SceneState> _sceneState;
 };

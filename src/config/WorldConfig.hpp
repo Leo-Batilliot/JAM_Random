@@ -1,5 +1,7 @@
 #pragma once
 
 namespace WorldConfig {
-    inline constexpr float WALL_THICKNESS = 32.f;
+    // Walls
+    inline constexpr float WALL_THICKNESS = 18.f;
+    inline constexpr float WALL_FACE_DEPTH = 60.f;
 }
