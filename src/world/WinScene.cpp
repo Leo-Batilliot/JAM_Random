@@ -8,35 +8,11 @@
 #include "config/MenuConfig.hpp"
 #include "config/WindowConfig.hpp"
 #include <SFML/Graphics.hpp>
-#include <array>
-#include <random>
 #include <string>
 
-namespace {
-    std::string buildTaunt(int loserNumber) {
-        const std::string p = "PLAYER " + std::to_string(loserNumber);
-        const std::array<std::string, 12> taunts = {
-            "MAYBE " + p + " SHOULD BE PLAYING TIBOUDADA INSTEAD",
-            p + " PLAYS LIKE A MAGIKARP USING SPLASH",
-            "EVEN A LEVEL 2 PIDGEY COULD BEAT " + p,
-            p + " FORGOT TO HEAL AT THE POKEMON CENTER",
-            p + " SHOULD HAVE PICKED A BETTER STARTER",
-            p + " IS STILL STUCK IN VIRIDIAN FOREST",
-            "TEAM ROCKET WOULD'VE PUT UP A BETTER FIGHT THAN " + p,
-            p + " GOT ONE-SHOT LIKE A WILD CATERPIE",
-            p + " NEEDS TO RETURN TO PALLET TOWN AND TRAIN",
-            "EVEN A METAPOD USING HARDEN OUTPLAYS " + p,
-            p + " COULDN'T BEAT YOUNGSTER JOEY AND HIS SHORTS",
-            p + " RAN OUT OF POTIONS AT THE WORST TIME"
-        };
-        std::mt19937 rng(std::random_device{}());
-        std::uniform_int_distribution<size_t> dist(0, taunts.size() - 1);
-        return taunts[dist(rng)];
-    }
-}
-
 WinScene::WinScene(Game& game, int winnerId)
-    : _game(game), _winnerId(winnerId), _taunt(buildTaunt(2 - winnerId)) {}
+    : _game(game), _winnerId(winnerId),
+      _taunt("MAYBE PLAYER " + std::to_string(2 - winnerId) + " SHOULD BE PLAYING TIBOUDADA INSTEAD") {}
 
 void WinScene::handleEvent(const sf::Event& event, SceneManager& sceneManager) {
     if (event.is<sf::Event::KeyPressed>()) {
