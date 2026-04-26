@@ -33,7 +33,11 @@ private:
         if (length > 0.f)
             direction /= length;
         input.moveDir = direction;
-        input.shoot = sf::Keyboard::isKeyPressed(keys.shoot);
+        const bool primaryShoot = sf::Keyboard::isKeyPressed(keys.shoot);
+        const bool altShoot =
+            keys.shootAlt != sf::Keyboard::Key::Unknown &&
+            sf::Keyboard::isKeyPressed(keys.shootAlt);
+        input.shoot = primaryShoot || altShoot;
         return input;
     }
 };

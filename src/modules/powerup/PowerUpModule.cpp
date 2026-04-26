@@ -1,7 +1,9 @@
 #include "PowerUpModule.hpp"
 #include "config/ArenaConfig.hpp"
+#include "config/GameplayConfig.hpp"
 #include "config/PowerUpConfig.hpp"
 #include "config/WindowConfig.hpp"
+#include "config/WorldConfig.hpp"
 #include "core/AssetManager.hpp"
 #include "core/EventBus.hpp"
 #include "core/GameState.hpp"
@@ -86,9 +88,21 @@ void PowerUpModule::tickSpawn(const ModuleContext& context, float dt) {
 		return;
 
 	const sf::FloatRect bounds = arenaBounds();
-	const float margin = PowerUpConfig::POWERUP_RADIUS;
-	std::uniform_real_distribution<float> xDist(bounds.position.x + margin, bounds.position.x + bounds.size.x - margin);
-	std::uniform_real_distribution<float> yDist(bounds.position.y + margin, bounds.position.y + bounds.size.y - margin);
+	const float wallBoundary = WorldConfig::WALL_THICKNESS + WorldConfig::WALL_FACE_DEPTH;
+	float maxPlayerRadius = GameplayConfig::PLAYER_RADIUS;
+	for (const PlayerState& player : context.state.players)
+		maxPlayerRadius = std::max(maxPlayerRadius, player.radius);
+
+	const float spawnMargin = wallBoundary + maxPlayerRadius + PowerUpConfig::POWERUP_RADIUS;
+	const float minX = bounds.position.x + spawnMargin;
+	const float maxX = bounds.position.x + bounds.size.x - spawnMargin;
+	const float minY = bounds.position.y + spawnMargin;
+	const float maxY = bounds.position.y + bounds.size.y - spawnMargin;
+	if (minX >= maxX || minY >= maxY)
+		return;
+
+	std::uniform_real_distribution<float> xDist(minX, maxX);
+	std::uniform_real_distribution<float> yDist(minY, maxY);
 
 	const sf::Vector2f position{xDist(_rng), yDist(_rng)};
 	const int diceValue = rollDice(-1);
