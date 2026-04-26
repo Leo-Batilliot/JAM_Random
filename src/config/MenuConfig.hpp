@@ -24,7 +24,8 @@ namespace MenuConfig {
     inline constexpr float WIN_PLAYER_LABEL_Y = 0.32f;
     inline constexpr float WIN_WINS_Y         = 0.45f;
     inline constexpr float WIN_SCORE_Y        = 0.60f;
-    inline constexpr float WIN_PROMPT_Y       = 0.82f;
+    inline constexpr float WIN_TAUNT_Y        = 0.72f;
+    inline constexpr float WIN_PROMPT_Y       = 0.86f;
     inline constexpr float WIN_TINT_ALPHA     = 16.f;
     inline constexpr float WIN_BORDER_ALPHA   = 210.f;
     inline constexpr float WIN_BORDER_THICKNESS = 4.f;
@@ -32,5 +33,6 @@ namespace MenuConfig {
     inline constexpr unsigned int FONT_WIN_PLAYER = 36;
     inline constexpr unsigned int FONT_WIN_WINS   = 58;
     inline constexpr unsigned int FONT_WIN_SCORE  = 28;
+    inline constexpr unsigned int FONT_WIN_TAUNT  = 16;
     inline constexpr unsigned int FONT_WIN_PROMPT = 14;
 }

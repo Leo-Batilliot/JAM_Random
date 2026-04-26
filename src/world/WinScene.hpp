@@ -1,5 +1,6 @@
 #pragma once
 #include "../core/Scene.hpp"
+#include <string>
 
 class Game;
 
@@ -13,4 +14,5 @@ public:
 private:
     Game& _game;
     int _winnerId;
+    std::string _taunt;
 };
