@@ -40,5 +40,5 @@ private:
     float durationFromTier(int tier) const;
     sf::Color colorFromTier(int tier) const;
     sf::Color tintFromType(PowerUpType type) const;
-    std::string_view texturePathFromTier(int tier) const;
+    std::string_view texturePathFromType(PowerUpType type) const;
 };

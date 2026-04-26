@@ -38,11 +38,15 @@ namespace PowerUpConfig {
     inline constexpr float HOMING_TURN_RATE = 7.f;
     inline constexpr float INVINCIBILITY_REFRESH_TIME = 0.1f;
 
-    // Simple textures for map pickups (tier-driven visual base).
-    inline constexpr std::array<std::string_view, 3> TIER_TEXTURE_PATHS = {
-        "assets/textures/powerup_tier1.png",
-        "assets/textures/powerup_tier2.png",
-        "assets/textures/powerup_tier3.png"
+    // One icon per power-up type for instant recognition in-game.
+    inline constexpr std::array<std::string_view, 7> TYPE_ICON_TEXTURE_PATHS = {
+        "assets/textures/powerup_speedboost.png",
+        "assets/textures/powerup_rapidfire.png",
+        "assets/textures/powerup_spreadshot.png",
+        "assets/textures/powerup_shield.png",
+        "assets/textures/powerup_homing.png",
+        "assets/textures/powerup_invincibility.png",
+        "assets/textures/powerup_tripledamage.png"
     };
 
     // Type tint overlay to distinguish power-up families quickly.

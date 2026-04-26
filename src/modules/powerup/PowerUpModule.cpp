@@ -31,13 +31,13 @@ void PowerUpModule::render(const ModuleContext&, sf::RenderWindow& window) {
 	fallbackShape.setOrigin(sf::Vector2f{PowerUpConfig::POWERUP_RADIUS, PowerUpConfig::POWERUP_RADIUS});
 
 	for (const MapPowerUp& powerUp : _powerUps) {
-		const sf::Color typeTint = tintFromType(powerUp.type);
+		const sf::Color tierColor = colorFromTier(powerUp.tier);
 		try {
-			const sf::Texture& texture = AssetManager::instance().texture(std::string(texturePathFromTier(powerUp.tier)));
+			const sf::Texture& texture = AssetManager::instance().texture(std::string(texturePathFromType(powerUp.type)));
 			sf::Sprite sprite(texture);
 			sprite.setOrigin(sf::Vector2f{texture.getSize().x * 0.5f, texture.getSize().y * 0.5f});
 			sprite.setPosition(powerUp.position);
-			sprite.setColor(typeTint);
+			sprite.setColor(tierColor);
 			sprite.setScale(sf::Vector2f{
 				diameter / static_cast<float>(texture.getSize().x),
 				diameter / static_cast<float>(texture.getSize().y)
@@ -46,7 +46,7 @@ void PowerUpModule::render(const ModuleContext&, sf::RenderWindow& window) {
 		} catch (...) {
 			fallbackShape.setPosition(powerUp.position);
 			fallbackShape.setFillColor(colorFromTier(powerUp.tier));
-			fallbackShape.setOutlineColor(typeTint);
+			fallbackShape.setOutlineColor(tintFromType(powerUp.type));
 			fallbackShape.setOutlineThickness(2.f);
 			window.draw(fallbackShape);
 		}
@@ -201,7 +201,9 @@ sf::Color PowerUpModule::tintFromType(PowerUpType type) const {
 	return PowerUpConfig::TYPE_TINT_COLORS[index];
 }
 
-std::string_view PowerUpModule::texturePathFromTier(int tier) const {
-	const std::size_t index = static_cast<std::size_t>(std::clamp(tier, 1, 3) - 1);
-	return PowerUpConfig::TIER_TEXTURE_PATHS[index];
+std::string_view PowerUpModule::texturePathFromType(PowerUpType type) const {
+	const std::size_t index = static_cast<std::size_t>(type);
+	if (index >= PowerUpConfig::TYPE_ICON_TEXTURE_PATHS.size())
+		return PowerUpConfig::TYPE_ICON_TEXTURE_PATHS[0];
+	return PowerUpConfig::TYPE_ICON_TEXTURE_PATHS[index];
 }
