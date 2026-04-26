@@ -12,4 +12,6 @@ public:
 
 private:
     Game& _game;
+    float _blinkTimer = 0.f;
+    bool _promptVisible = true;
 };

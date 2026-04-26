@@ -20,6 +20,8 @@ public:
         );
     }
 
+    void clear() { _handlers.clear(); }
+
     template<typename Event>
     // Example: bus.emit(PlayerDiedEvent{victimId, killerId, pos});
     void emit(const Event& event) {
