@@ -8,12 +8,15 @@
 #include "config/ColorConfig.hpp"
 #include "config/GameplayConfig.hpp"
 #include "config/HUDConfig.hpp"
+#include "config/PowerUpConfig.hpp"
 #include "config/VisualConfig.hpp"
 #include "config/WindowConfig.hpp"
 #include <SFML/Graphics.hpp>
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <numbers>
+#include <random>
 #include <string>
 #include <vector>
 #include <array>
@@ -155,6 +158,15 @@ const char* getPowerUpLabel(PowerUpType type) {
     return "???";
 }
 
+// Maps a d6 roll to the same tier logic used by power-up spawning.
+int powerUpTierFromRoll(int rollValue) {
+    if (rollValue >= 6)
+        return 3;
+    if (rollValue >= 4)
+        return 2;
+    return 1;
+}
+
 // Draws the HUD panel for one player.
 void drawPlayerHUD(sf::RenderWindow& window, const sf::Font& font, const PlayerState& player, int playerIndex, float hitFlashAlpha)
 {
@@ -259,6 +271,20 @@ struct UIModule::UIRenderState {
 
     std::array<float, 2> hudFlashTimers = {};
     std::array<sf::Texture, 2> weaponTextures;
+    std::array<sf::Texture, 6> diceFaceTextures;
+
+    struct DicePopup {
+        sf::Vector2f position;
+        int finalValue;
+        int displayedValue;
+        int tier;
+        float timeRemaining;
+        float rollAnimationRemaining;
+        float nextFaceChangeIn;
+    };
+    std::deque<int> pendingPowerUpRolls;
+    std::vector<DicePopup> dicePopups;
+    std::mt19937 rng{std::random_device{}()};
 
     [[nodiscard]] bool loadAssets() {
         if (!characters[0].load(AssetConfig::CHAR1_DIRECTORY))
@@ -269,6 +295,10 @@ struct UIModule::UIRenderState {
             return false;
         if (!weaponTextures[1].loadFromFile(AssetConfig::WEAPON2_SPRITE))
             return false;
+        for (std::size_t i = 0; i < diceFaceTextures.size(); ++i) {
+            if (!diceFaceTextures[i].loadFromFile(std::string(PowerUpConfig::DICE_FACE_TEXTURE_PATHS[i])))
+                return false;
+        }
         return muzzleTexture.loadFromFile(AssetConfig::MUZZLE_TEXTURE);
     }
 };
@@ -307,6 +337,29 @@ UIModule::UIModule(ModuleContext& context)
         character.frameTimer = 0.f;
         character.animationDone = false;
     });
+
+    _context.bus.subscribe<DiceRolledEvent>([this](const DiceRolledEvent& event) {
+        if (event.playerId < 0)
+            _uiState->pendingPowerUpRolls.push_back(event.value);
+    });
+
+    _context.bus.subscribe<PowerUpSpawnedEvent>([this](const PowerUpSpawnedEvent& event) {
+        int rollValue = 1;
+        if (!_uiState->pendingPowerUpRolls.empty()) {
+            rollValue = _uiState->pendingPowerUpRolls.front();
+            _uiState->pendingPowerUpRolls.pop_front();
+        }
+
+        _uiState->dicePopups.push_back(UIRenderState::DicePopup{
+            event.position + sf::Vector2f{0.f, VisualConfig::DICE_POPUP_OFFSET_Y},
+            rollValue,
+            1,
+            powerUpTierFromRoll(rollValue),
+            VisualConfig::DICE_POPUP_DURATION,
+            VisualConfig::DICE_ROLL_ANIMATION_DURATION,
+            0.f
+        });
+    });
 }
 
 UIModule::~UIModule() = default;
@@ -326,6 +379,34 @@ void UIModule::update(const ModuleContext& context, float dt) {
     for (auto& hitEffect : renderState.hitEffects)
         hitEffect.timeRemaining -= dt;
     std::erase_if(renderState.hitEffects, [](const auto& hitEffect) {return hitEffect.timeRemaining <= 0.f;});
+
+    for (auto& dicePopup : renderState.dicePopups) {
+        dicePopup.timeRemaining -= dt;
+        dicePopup.position.y -= VisualConfig::DICE_POPUP_RISE_SPEED * dt;
+
+        if (dicePopup.rollAnimationRemaining > 0.f) {
+            dicePopup.rollAnimationRemaining = std::max(0.f, dicePopup.rollAnimationRemaining - dt);
+            dicePopup.nextFaceChangeIn -= dt;
+
+            if (dicePopup.nextFaceChangeIn <= 0.f) {
+                std::uniform_int_distribution<int> d6(1, 6);
+                int face = d6(renderState.rng);
+                if (face == dicePopup.displayedValue)
+                    face = (face % 6) + 1;
+                dicePopup.displayedValue = face;
+
+                const float progress = 1.f - (dicePopup.rollAnimationRemaining / VisualConfig::DICE_ROLL_ANIMATION_DURATION);
+                const float easing = progress * progress;
+                const float minInterval = VisualConfig::DICE_ROLL_FRAME_MIN_INTERVAL;
+                const float maxInterval = VisualConfig::DICE_ROLL_FRAME_MAX_INTERVAL;
+                dicePopup.nextFaceChangeIn = minInterval + (maxInterval - minInterval) * easing;
+            }
+
+            if (dicePopup.rollAnimationRemaining <= 0.f)
+                dicePopup.displayedValue = dicePopup.finalValue;
+        }
+    }
+    std::erase_if(renderState.dicePopups, [](const auto& dicePopup) { return dicePopup.timeRemaining <= 0.f; });
 
     // Facing + animation state
     for (int playerIndex = 0; playerIndex < GameplayConfig::PLAYER_COUNT; ++playerIndex) {
@@ -455,6 +536,53 @@ void UIModule::render(const ModuleContext& context, sf::RenderWindow& window) {
         sparkShape.setFillColor(sf::Color( ColorConfig::HIT_SPARK_COLOR.r, ColorConfig::HIT_SPARK_COLOR.g, ColorConfig::HIT_SPARK_COLOR.b,
             static_cast<uint8_t>(progress * VisualConfig::HIT_SPARK_MAX_ALPHA)));
         window.draw(sparkShape);
+    }
+
+    // Dice roll popups for power-up randomness feedback.
+    for (const auto& dicePopup : renderState.dicePopups) {
+        const float lifeRatio = std::clamp(dicePopup.timeRemaining / VisualConfig::DICE_POPUP_DURATION, 0.f, 1.f);
+        const float lifeProgress = 1.f - lifeRatio;
+        const float fadeStart = std::clamp(VisualConfig::DICE_POPUP_FADE_START_RATIO, 0.f, 0.95f);
+        float fadeRatio = 1.f;
+        if (lifeProgress > fadeStart)
+            fadeRatio = 1.f - ((lifeProgress - fadeStart) / (1.f - fadeStart));
+        fadeRatio = std::clamp(fadeRatio, 0.f, 1.f);
+        const uint8_t alpha = static_cast<uint8_t>(VisualConfig::DICE_POPUP_MAX_ALPHA * fadeRatio);
+        const std::size_t tierIndex = static_cast<std::size_t>(std::clamp(dicePopup.tier, 1, 3) - 1);
+        sf::Color popupColor = PowerUpConfig::TIER_COLORS[tierIndex];
+        popupColor.a = alpha;
+
+        sf::Vector2f drawPos = dicePopup.position;
+        if (dicePopup.rollAnimationRemaining > 0.f) {
+            const float phase = dicePopup.rollAnimationRemaining * 42.f;
+            drawPos.x += std::sin(phase) * VisualConfig::DICE_ROLL_SHAKE_AMPLITUDE;
+        }
+
+        sf::CircleShape aura(VisualConfig::DICE_POPUP_SPRITE_SIZE * 0.46f);
+        aura.setOrigin({aura.getRadius(), aura.getRadius()});
+        aura.setPosition(drawPos);
+        aura.setFillColor(sf::Color(popupColor.r, popupColor.g, popupColor.b,
+            static_cast<uint8_t>(VisualConfig::DICE_POPUP_AURA_MAX_ALPHA * fadeRatio)));
+        window.draw(aura);
+
+        const int faceIndex = std::clamp(dicePopup.displayedValue, 1, 6) - 1;
+        const sf::Texture& faceTexture = renderState.diceFaceTextures[static_cast<std::size_t>(faceIndex)];
+        sf::Sprite diceSprite(faceTexture);
+        diceSprite.setOrigin({faceTexture.getSize().x * 0.5f, faceTexture.getSize().y * 0.5f});
+        const float scale = VisualConfig::DICE_POPUP_SPRITE_SIZE / static_cast<float>(faceTexture.getSize().x);
+        diceSprite.setScale({scale, scale});
+        diceSprite.setPosition(drawPos);
+        diceSprite.setColor(sf::Color(255, 255, 255, alpha));
+        window.draw(diceSprite);
+
+        sf::Text diceValueText(font, std::to_string(dicePopup.displayedValue), VisualConfig::DICE_POPUP_FONT_SIZE - 2);
+        diceValueText.setFillColor(sf::Color(25, 25, 25, alpha));
+        diceValueText.setOutlineColor(sf::Color(255, 255, 255, alpha));
+        diceValueText.setOutlineThickness(1.f);
+        const sf::FloatRect textBounds = diceValueText.getLocalBounds();
+        diceValueText.setOrigin({textBounds.position.x + textBounds.size.x * 0.5f, textBounds.position.y + textBounds.size.y * 0.5f});
+        diceValueText.setPosition({drawPos.x, drawPos.y + VisualConfig::DICE_POPUP_SPRITE_SIZE * 0.78f});
+        window.draw(diceValueText);
     }
 
     // HUD

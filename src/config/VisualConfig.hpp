@@ -28,4 +28,19 @@ namespace VisualConfig {
 
     // Bullet
     inline constexpr float BULLET_OUTLINE_THICKNESS = 1.5f;
+
+    // Power-up dice roll popup
+    inline constexpr float DICE_POPUP_DURATION = 1.8f;
+    inline constexpr float DICE_POPUP_RISE_SPEED = 14.f;
+    inline constexpr float DICE_POPUP_OFFSET_Y = -32.f;
+    inline constexpr float DICE_POPUP_OUTLINE_THICKNESS = 2.f;
+    inline constexpr unsigned int DICE_POPUP_FONT_SIZE = 18;
+    inline constexpr uint8_t DICE_POPUP_MAX_ALPHA = 245;
+    inline constexpr float DICE_ROLL_ANIMATION_DURATION = 0.45f;
+    inline constexpr float DICE_ROLL_FRAME_MIN_INTERVAL = 0.03f;
+    inline constexpr float DICE_ROLL_FRAME_MAX_INTERVAL = 0.11f;
+    inline constexpr float DICE_ROLL_SHAKE_AMPLITUDE = 4.f;
+    inline constexpr float DICE_POPUP_SPRITE_SIZE = 44.f;
+    inline constexpr uint8_t DICE_POPUP_AURA_MAX_ALPHA = 140;
+    inline constexpr float DICE_POPUP_FADE_START_RATIO = 0.45f;
 }

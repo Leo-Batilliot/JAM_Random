@@ -27,7 +27,7 @@ namespace PowerUpConfig {
         sf::Color(255, 140, 140)
     };
 
-    // Gameplay tuning for effects used by CombatModule/PowerUpModule.
+    // Gameplay tuning
     inline constexpr float SPEED_BOOST_MULTIPLIER = 1.35f;
     inline constexpr float RAPID_FIRE_COOLDOWN_MULTIPLIER = 0.55f;
     inline constexpr float MIN_FIRE_COOLDOWN = 0.08f;
@@ -38,7 +38,7 @@ namespace PowerUpConfig {
     inline constexpr float HOMING_TURN_RATE = 7.f;
     inline constexpr float INVINCIBILITY_REFRESH_TIME = 0.1f;
 
-    // One icon per power-up type for instant recognition in-game.
+    // One icon per power-up type
     inline constexpr std::array<std::string_view, 7> TYPE_ICON_TEXTURE_PATHS = {
         "assets/textures/powerup_speedboost.png",
         "assets/textures/powerup_rapidfire.png",
@@ -49,7 +49,16 @@ namespace PowerUpConfig {
         "assets/textures/powerup_tripledamage.png"
     };
 
-    // Type tint overlay to distinguish power-up families quickly.
+    // D6 face assets
+    inline constexpr std::array<std::string_view, 6> DICE_FACE_TEXTURE_PATHS = {
+        "assets/textures/dice_d6_1.png",
+        "assets/textures/dice_d6_2.png",
+        "assets/textures/dice_d6_3.png",
+        "assets/textures/dice_d6_4.png",
+        "assets/textures/dice_d6_5.png",
+        "assets/textures/dice_d6_6.png"
+    };
+
     inline constexpr std::array<sf::Color, 7> TYPE_TINT_COLORS = {
         sf::Color(110, 220, 255),
         sf::Color(255, 210, 110),
