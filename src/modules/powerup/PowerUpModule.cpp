@@ -2,8 +2,10 @@
 #include "config/ArenaConfig.hpp"
 #include "config/PowerUpConfig.hpp"
 #include "config/WindowConfig.hpp"
+#include "core/AssetManager.hpp"
 #include "core/EventBus.hpp"
 #include "core/GameState.hpp"
+#include <SFML/Graphics/Sprite.hpp>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -20,16 +22,34 @@ void PowerUpModule::update(const ModuleContext& context, float dt) {
 	tickDespawn(dt);
 	tickPickups(context);
 	tickEffects(context, dt);
+	enforceContinuousEffects(context);
 }
 
 void PowerUpModule::render(const ModuleContext&, sf::RenderWindow& window) {
-	sf::CircleShape shape(PowerUpConfig::POWERUP_RADIUS);
-	shape.setOrigin(sf::Vector2f{PowerUpConfig::POWERUP_RADIUS, PowerUpConfig::POWERUP_RADIUS});
+	const float diameter = PowerUpConfig::POWERUP_RADIUS * 2.f;
+	sf::CircleShape fallbackShape(PowerUpConfig::POWERUP_RADIUS);
+	fallbackShape.setOrigin(sf::Vector2f{PowerUpConfig::POWERUP_RADIUS, PowerUpConfig::POWERUP_RADIUS});
 
 	for (const MapPowerUp& powerUp : _powerUps) {
-		shape.setPosition(powerUp.position);
-		shape.setFillColor(colorFromTier(powerUp.tier));
-		window.draw(shape);
+		const sf::Color typeTint = tintFromType(powerUp.type);
+		try {
+			const sf::Texture& texture = AssetManager::instance().texture(std::string(texturePathFromTier(powerUp.tier)));
+			sf::Sprite sprite(texture);
+			sprite.setOrigin(sf::Vector2f{texture.getSize().x * 0.5f, texture.getSize().y * 0.5f});
+			sprite.setPosition(powerUp.position);
+			sprite.setColor(typeTint);
+			sprite.setScale(sf::Vector2f{
+				diameter / static_cast<float>(texture.getSize().x),
+				diameter / static_cast<float>(texture.getSize().y)
+			});
+			window.draw(sprite);
+		} catch (...) {
+			fallbackShape.setPosition(powerUp.position);
+			fallbackShape.setFillColor(colorFromTier(powerUp.tier));
+			fallbackShape.setOutlineColor(typeTint);
+			fallbackShape.setOutlineThickness(2.f);
+			window.draw(fallbackShape);
+		}
 	}
 }
 
@@ -119,6 +139,22 @@ void PowerUpModule::tickEffects(const ModuleContext& context, float dt) {
 		context.state.players[playerId].tickEffects(dt, context.bus, playerId);
 }
 
+void PowerUpModule::enforceContinuousEffects(const ModuleContext& context) {
+	for (int playerId = 0; playerId < static_cast<int>(context.state.players.size()); ++playerId) {
+		PlayerState& player = context.state.players[playerId];
+		if (!player.alive)
+			continue;
+
+		const bool protectsPlayer =
+			player.hasEffect(PowerUpType::Shield) || player.hasEffect(PowerUpType::Invincibility);
+		if (!protectsPlayer)
+			continue;
+
+		player.invincible = true;
+		player.invincibleTimer = std::max(player.invincibleTimer, PowerUpConfig::INVINCIBILITY_REFRESH_TIME);
+	}
+}
+
 int PowerUpModule::rollDice(int playerId) {
 	std::uniform_int_distribution<int> diceDist(1, 6);
 	const int value = diceDist(_rng);
@@ -156,4 +192,16 @@ float PowerUpModule::durationFromTier(int tier) const {
 sf::Color PowerUpModule::colorFromTier(int tier) const {
 	const std::size_t index = static_cast<std::size_t>(std::clamp(tier, 1, 3) - 1);
 	return PowerUpConfig::TIER_COLORS[index];
+}
+
+sf::Color PowerUpModule::tintFromType(PowerUpType type) const {
+	const std::size_t index = static_cast<std::size_t>(type);
+	if (index >= PowerUpConfig::TYPE_TINT_COLORS.size())
+		return sf::Color::White;
+	return PowerUpConfig::TYPE_TINT_COLORS[index];
+}
+
+std::string_view PowerUpModule::texturePathFromTier(int tier) const {
+	const std::size_t index = static_cast<std::size_t>(std::clamp(tier, 1, 3) - 1);
+	return PowerUpConfig::TIER_TEXTURE_PATHS[index];
 }

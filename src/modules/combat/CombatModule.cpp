@@ -4,12 +4,62 @@
 #include "config/ArenaConfig.hpp"
 #include "config/ColorConfig.hpp"
 #include "config/GameplayConfig.hpp"
+#include "config/PowerUpConfig.hpp"
 #include "config/WindowConfig.hpp"
 #include "config/WorldConfig.hpp"
 #include "config/VisualConfig.hpp"
 #include <SFML/Graphics.hpp>
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <numbers>
+
+namespace {
+
+sf::Vector2f normalizeOrFallback(const sf::Vector2f& value, const sf::Vector2f& fallback) {
+    const float len = std::sqrt(value.x * value.x + value.y * value.y);
+    if (len <= 0.0001f)
+        return fallback;
+    return value / len;
+}
+
+sf::Vector2f rotateVector(const sf::Vector2f& vector, float degrees) {
+    const float radians = degrees * (std::numbers::pi_v<float> / 180.f);
+    const float cosA = std::cos(radians);
+    const float sinA = std::sin(radians);
+    return sf::Vector2f{
+        vector.x * cosA - vector.y * sinA,
+        vector.x * sinA + vector.y * cosA
+    };
+}
+
+float speedMultiplier(const PlayerState& player) {
+    return player.hasEffect(PowerUpType::SpeedBoost) ? PowerUpConfig::SPEED_BOOST_MULTIPLIER : 1.f;
+}
+
+float cooldownMultiplier(const PlayerState& player) {
+    return player.hasEffect(PowerUpType::RapidFire) ? PowerUpConfig::RAPID_FIRE_COOLDOWN_MULTIPLIER : 1.f;
+}
+
+int bulletDamage(const PlayerState& player) {
+    return player.hasEffect(PowerUpType::TripleDamage)
+        ? PowerUpConfig::TRIPLE_DAMAGE_BULLET_DAMAGE
+        : PowerUpConfig::NORMAL_BULLET_DAMAGE;
+}
+
+bool hasHoming(const PlayerState& player) {
+    return player.hasEffect(PowerUpType::HomingBullets);
+}
+
+bool hasSpread(const PlayerState& player) {
+    return player.hasEffect(PowerUpType::SpreadShot);
+}
+
+bool hasDefenseEffect(const PlayerState& player) {
+    return player.hasEffect(PowerUpType::Shield) || player.hasEffect(PowerUpType::Invincibility);
+}
+
+} // namespace
 
 CombatModule::CombatModule(ModuleContext& context) : _context(context) {
     _facing[0] = {1.f, 0.f};
@@ -44,7 +94,7 @@ void CombatModule::update(const ModuleContext& context, float dt) {
         const sf::Vector2f moveDirection = playerInput.moveDir;
         const bool wantsToShoot = playerInput.shoot;
 
-        player.position += moveDirection * GameplayConfig::PLAYER_SPEED * dt;
+        player.position += moveDirection * GameplayConfig::PLAYER_SPEED * speedMultiplier(player) * dt;
         player.position.x = std::clamp(player.position.x,
             arenaTopLeft.x + wallBoundary + player.radius,
             arenaTopLeft.x + arenaSize.x - wallBoundary - player.radius);
@@ -58,19 +108,65 @@ void CombatModule::update(const ModuleContext& context, float dt) {
         _fireCooldowns[playerIndex] = std::max(0.f, _fireCooldowns[playerIndex] - dt);
 
         if (wantsToShoot && _fireCooldowns[playerIndex] <= 0.f) {
-            _bullets.push_back(Bullet{
-                {player.position.x + GameplayConfig::BULLET_SPAWN_OFFSET_X,
-                 player.position.y + GameplayConfig::BULLET_SPAWN_OFFSET_Y},
-                _facing[playerIndex] * GameplayConfig::BULLET_SPEED,
-                playerIndex,
-                GameplayConfig::BULLET_LIFETIME
-            });
-            _fireCooldowns[playerIndex] = GameplayConfig::FIRE_COOLDOWN;
+            const sf::Vector2f shootDirection = normalizeOrFallback(_facing[playerIndex], sf::Vector2f{1.f, 0.f});
+            const int projectileCount = hasSpread(player) ? PowerUpConfig::SPREAD_PROJECTILE_COUNT : 1;
+            const float spreadAngleStep = (projectileCount > 1) ? PowerUpConfig::SPREAD_ANGLE_DEGREES : 0.f;
+            const float spreadStartAngle = -0.5f * spreadAngleStep * static_cast<float>(projectileCount - 1);
+
+            for (int projectileIndex = 0; projectileIndex < projectileCount; ++projectileIndex) {
+                const float angleOffset = spreadStartAngle + spreadAngleStep * static_cast<float>(projectileIndex);
+                const sf::Vector2f shotDirection = (projectileCount > 1)
+                    ? rotateVector(shootDirection, angleOffset)
+                    : shootDirection;
+
+                _bullets.push_back(Bullet{
+                    {player.position.x + GameplayConfig::BULLET_SPAWN_OFFSET_X,
+                     player.position.y + GameplayConfig::BULLET_SPAWN_OFFSET_Y},
+                    normalizeOrFallback(shotDirection, shootDirection) * GameplayConfig::BULLET_SPEED,
+                    playerIndex,
+                    GameplayConfig::BULLET_LIFETIME,
+                    bulletDamage(player),
+                    hasHoming(player)
+                });
+            }
+
+            const float cooldown = GameplayConfig::FIRE_COOLDOWN * cooldownMultiplier(player);
+            _fireCooldowns[playerIndex] = std::max(cooldown, PowerUpConfig::MIN_FIRE_COOLDOWN);
         }
     }
 
     // Bullet movement
     for (auto& bullet : _bullets) {
+        if (bullet.homing) {
+            int targetId = -1;
+            float closestDistanceSq = std::numeric_limits<float>::max();
+            for (int playerIndex = 0; playerIndex < GameplayConfig::PLAYER_COUNT; ++playerIndex) {
+                if (playerIndex == bullet.ownerId)
+                    continue;
+                const PlayerState& target = context.state.players[playerIndex];
+                if (!target.alive)
+                    continue;
+                const sf::Vector2f toTarget = target.position - bullet.position;
+                const float distanceSq = toTarget.x * toTarget.x + toTarget.y * toTarget.y;
+                if (distanceSq < closestDistanceSq) {
+                    closestDistanceSq = distanceSq;
+                    targetId = playerIndex;
+                }
+            }
+
+            if (targetId >= 0) {
+                const sf::Vector2f toTarget = context.state.players[targetId].position - bullet.position;
+                const sf::Vector2f desiredDir = normalizeOrFallback(toTarget, normalizeOrFallback(bullet.velocity, sf::Vector2f{1.f, 0.f}));
+                const sf::Vector2f currentDir = normalizeOrFallback(bullet.velocity, desiredDir);
+                const float steer = std::clamp(PowerUpConfig::HOMING_TURN_RATE * dt, 0.f, 1.f);
+                const sf::Vector2f blendedDir = normalizeOrFallback(
+                    currentDir * (1.f - steer) + desiredDir * steer,
+                    desiredDir
+                );
+                bullet.velocity = blendedDir * GameplayConfig::BULLET_SPEED;
+            }
+        }
+
         bullet.position += bullet.velocity * dt;
         bullet.lifetime -= dt;
     }
@@ -84,7 +180,7 @@ void CombatModule::update(const ModuleContext& context, float dt) {
             if (playerIndex == bullet.ownerId)
                 continue;
             PlayerState& player = context.state.players[playerIndex];
-            if (!player.alive || player.invincible)
+            if (!player.alive || player.invincible || hasDefenseEffect(player))
                 continue;
 
             const sf::Vector2f delta = player.position - bullet.position;
@@ -94,7 +190,7 @@ void CombatModule::update(const ModuleContext& context, float dt) {
                 continue;
 
             bullet.lifetime = -1.f;
-            player.hp -= 1;
+            player.hp -= bullet.damage;
             if (player.hp > 0) {
                 player.invincible = true;
                 player.invincibleTimer = GameplayConfig::PLAYER_INVINCIBILITY_DURATION;
