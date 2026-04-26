@@ -19,6 +19,8 @@ private:
         sf::Vector2f velocity;
         int ownerId;
         float lifetime;
+        int damage;
+        bool homing;
     };
 
     ModuleContext& _context;
