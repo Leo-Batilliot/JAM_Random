@@ -1,5 +1,7 @@
 # Jam Random — DICE DUEL
 
+![Demo](docs/demo.gif)
+
 Un jeu de duel d'arène local en 1v1 écrit en **C++20** avec **SFML 3.0**. Deux
 joueurs s'affrontent au clavier, ramassent des power-ups dont la puissance
 dépend d'un lancé de dé, et le premier à atteindre 3 éliminations remporte le
